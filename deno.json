@@ -1,0 +1,11 @@
+{
+  "workspace": [
+    "./workspaces/migrations",
+    "./workspaces/postgres",
+    "./workspaces/services/*"
+  ],
+  "tasks": {
+    "check": "deno fmt --check && deno lint --permit-no-files",
+    "test": "deno test --permit-no-files"
+  }
+}
