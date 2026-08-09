@@ -1,4 +1,4 @@
-use crate::ports::panel::{Panel, PanelFrame};
+use crate::ports::panel::{ShellPanel, ShellPanelBounds, ShellPanelError, ShellPanelPlacement};
 
 const CG_STATUS_WINDOW_LEVEL_KEY: i32 = 9;
 
@@ -14,18 +14,27 @@ unsafe extern "C" {
 }
 
 #[derive(Clone, Copy, Default)]
-pub struct MacOsPanel;
+pub struct AppKitShellPanel;
 
-impl Panel for MacOsPanel {
-    fn pin(&self, frame: PanelFrame) -> f64 {
-        unsafe {
+impl ShellPanel for AppKitShellPanel {
+    fn place_above_system_menu_bar(
+        &self,
+        bounds: ShellPanelBounds,
+    ) -> Result<ShellPanelPlacement, ShellPanelError> {
+        let top_offset = unsafe {
             neosicht_pin_shell_window(
                 CG_STATUS_WINDOW_LEVEL_KEY,
-                frame.x,
-                frame.top,
-                frame.width,
-                frame.height,
+                bounds.left,
+                bounds.top,
+                bounds.width,
+                bounds.height,
             )
+        };
+
+        if top_offset < 0.0 {
+            Err(ShellPanelError::WindowUnavailable)
+        } else {
+            Ok(ShellPanelPlacement { top_offset })
         }
     }
 }

@@ -134,15 +134,17 @@ crates/neosicht/
 
 Future widgets and features become their own cohesive crates—menus, workspaces,
 status widgets, and similar capabilities—rather than separate core, UI, FFI, or
-adapter crates. Each follows the same internal hexagonal structure, adding a
-core layer only when it has pure domain decisions. `neosicht` has no core yet.
+adapter crates. For example, Accessibility menu discovery belongs to a future
+menu-feature crate, not `neosicht`. Each crate follows the same internal
+hexagonal structure, adding a core layer only when it has pure domain decisions.
+`neosicht` has no core yet.
 
 Ground rules:
 
 - Each FFI capability has a corresponding safe port. Raw C declarations and
   `unsafe` are implementation details of that port's adapter.
-- The current dependency flow is `UI → App → Ports ← Adapters`; `impls` wires
-  the concrete adapters into app and passes app to UI.
+- `app` depends on ports; adapters implement ports. `impls` is the only layer
+  that imports app and concrete adapters, and it composes them with UI.
 - FFI is not centralized merely because it is FFI. C/Objective-C sources and
   safe Rust wrappers stay with the feature whose adapter owns them.
 - A port earns its existence only when alternatives, a test double, or graceful

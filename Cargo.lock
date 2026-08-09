@@ -3098,7 +3098,6 @@ name = "neosicht"
 version = "0.1.0"
 dependencies = [
  "cc",
- "core-foundation 0.10.1",
  "gpui",
  "gpui_macos",
  "gpui_platform",

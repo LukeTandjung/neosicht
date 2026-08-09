@@ -139,9 +139,10 @@ Build-environment findings (macOS 26 / Xcode 26.6 / Nix dev shell):
 
 ### 2026-08-09 — Experiment 1: PASS
 
-`crates/neosicht/src/adapters/accessibility.rs` — pure C FFI (raw `extern "C"`
-AX declarations + `core-foundation` crate), no Obj-C, no gpui. Measured
-(M-series, debug build):
+The experiment used pure C FFI (raw `extern "C"` AX declarations plus the
+`core-foundation` crate), with no Obj-C or GPUI. Its implementation was removed
+from `neosicht`; it will return in the menu-feature crate. Measured on M-series
+hardware in a debug build:
 
 | Operation                                                   | Result                 |
 | ----------------------------------------------------------- | ---------------------- |
