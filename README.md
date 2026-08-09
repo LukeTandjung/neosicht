@@ -1,25 +1,13 @@
-# Project Skeleton
+# neosicht
 
-A private GitHub template for Luke T's polyglot personal projects.
+An alternate desktop shell for macOS, built with Rust and GPUI. neosicht keeps
+WindowServer and normal macOS applications while replacing visible shell chrome
+with a custom top bar.
 
-## Tool ownership
+See [`docs/PLAN.md`](docs/PLAN.md) for the product and architecture plan and
+[`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) for the Phase-0 findings.
 
-- **Deno** owns TypeScript dependencies, formatting, linting, checks, and tests.
-- **Cargo** owns Rust dependencies, checks, and tests.
-- **devenv** provides repository tools, PostgreSQL, and cross-ecosystem tasks.
-- **Nix** pins the repository-scoped devenv executable.
-
-## Layout
-
-```text
-crates/                 Rust workspace crates
-workspaces/postgres/    Shared PostgreSQL infrastructure
-workspaces/migrations/  Central migration composition
-workspaces/services/    TypeScript Effect services
-ast-grep-rules/         Repository-specific structural rules
-```
-
-## Getting started
+## Development
 
 Enter the development environment:
 
@@ -27,12 +15,23 @@ Enter the development environment:
 direnv allow
 ```
 
-Run all checks and tests:
+Run the bar:
+
+```bash
+cargo run --bin neosicht
+```
+
+Run checks and tests:
 
 ```bash
 devenv tasks run project:check
 devenv tasks run project:test
 ```
 
-Add implementations only when the project needs them; the initial repository
-contains infrastructure boundaries without example application code.
+## Layout
+
+```text
+crates/neosicht/  Shell foundation and GPUI bar
+docs/             Plan and experiment findings
+ast-grep-rules/    Repository-specific structural rules
+```
