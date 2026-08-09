@@ -6,12 +6,17 @@ publish = false
 build = "src/adapters/panel_build.rs"
 
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed.git" }
-gpui_platform = { git = "https://github.com/zed-industries/zed.git" }
+base-gpui = { workspace = true }
+env_logger = "0.11.11"
+gpui = { workspace = true }
+gpui_platform = { workspace = true }
+workspaces = { path = "../workspaces" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-# The Nix apple-sdk xcrun cannot drive Xcode's downloadable Metal toolchain.
-gpui_macos = { git = "https://github.com/zed-industries/zed.git", features = ["runtime_shaders"] }
+# runtime_shaders: the Nix apple-sdk xcrun cannot drive Xcode's downloadable
+# Metal toolchain. font-kit: text rendering is feature-gated in the crate
+# split; without it gpui lays text out but draws no glyphs.
+gpui_macos = { workspace = true, features = ["runtime_shaders", "font-kit"] }
 
 [build-dependencies]
 cc = "1"

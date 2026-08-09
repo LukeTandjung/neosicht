@@ -11,6 +11,12 @@ pub struct ShellPanelPlacement {
     pub top_offset: f64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ShellPanelInteraction {
+    BarOnly { bar_height: f64 },
+    Extended,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShellPanelError {
     WindowUnavailable,
@@ -21,4 +27,6 @@ pub trait ShellPanel {
         &self,
         bounds: ShellPanelBounds,
     ) -> Result<ShellPanelPlacement, ShellPanelError>;
+
+    fn set_interaction(&self, interaction: ShellPanelInteraction) -> Result<(), ShellPanelError>;
 }

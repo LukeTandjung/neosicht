@@ -1,0 +1,13 @@
+[package]
+name = "workspaces"
+version = "0.1.0"
+edition = "2024"
+publish = false
+build = "src/adapters/app_icons_build.rs"
+
+[dependencies]
+base-gpui = { workspace = true }
+gpui = { workspace = true }
+
+[build-dependencies]
+cc = "1"

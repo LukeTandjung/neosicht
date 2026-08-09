@@ -1,13 +1,5 @@
-// Experiment 0/2 — position the shell panel at the very top of the screen.
-//
-// gpui/AppKit clamps a bar-height window below the menu bar (y=32 on a notched
-// display). Two facts let us defeat that with public API only, à la Barik:
-//   1. A window whose frame equals the full screen cannot be constrained
-//      downward (nowhere to go), so it lands at y=0.
-//   2. A low window level (below normal app windows) means the full-screen
-//      transparent panel does not intercept clicks meant for apps.
-//
-// This exports one plain C function; Rust never touches the Obj-C objects.
+// AppKit adapter for positioning and input routing of the persistent shell
+// panel. Rust sees only the plain C ABI below and never touches Obj-C objects.
 
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -36,6 +28,94 @@ static BOOL neosicht_returns_no(id self, SEL _cmd) {
     return NO;
 }
 
+@interface NeosichtInputPassthrough : NSObject
+@property(nonatomic, weak) NSWindow *window;
+@property(nonatomic) BOOL extended;
+@property(nonatomic) double barHeight;
+@property(nonatomic, strong) id globalMouseMonitor;
+@property(nonatomic, strong) id localMouseMonitor;
+- (void)update;
+@end
+
+@implementation NeosichtInputPassthrough
+- (void)update {
+    NSWindow *window = self.window;
+    if (window == nil) {
+        return;
+    }
+
+    BOOL acceptsMouse = self.extended;
+    if (!acceptsMouse) {
+        NSRect frame = window.frame;
+        NSPoint cursor = [NSEvent mouseLocation];
+        acceptsMouse = NSPointInRect(cursor, frame)
+            && cursor.y >= NSMaxY(frame) - self.barHeight;
+    }
+    window.ignoresMouseEvents = !acceptsMouse;
+}
+
+- (void)dealloc {
+    if (self.globalMouseMonitor != nil) {
+        [NSEvent removeMonitor:self.globalMouseMonitor];
+    }
+    if (self.localMouseMonitor != nil) {
+        [NSEvent removeMonitor:self.localMouseMonitor];
+    }
+}
+@end
+
+@interface NeosichtPanelState : NSObject
+@property(nonatomic, weak) NSWindow *window;
+@end
+
+@implementation NeosichtPanelState
+@end
+
+static char const neosicht_input_passthrough_key = 0;
+static char const neosicht_panel_state_key = 0;
+
+static NeosichtPanelState *neosicht_panel_state(void) {
+    NSApplication *app = [NSApplication sharedApplication];
+    NeosichtPanelState *state =
+        objc_getAssociatedObject(app, &neosicht_panel_state_key);
+    if (state == nil) {
+        state = [[NeosichtPanelState alloc] init];
+        objc_setAssociatedObject(app, &neosicht_panel_state_key,
+                                 state, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return state;
+}
+
+static NeosichtInputPassthrough *neosicht_input_passthrough(NSWindow *window) {
+    NeosichtInputPassthrough *passthrough =
+        objc_getAssociatedObject(window, &neosicht_input_passthrough_key);
+    if (passthrough != nil) {
+        return passthrough;
+    }
+
+    passthrough = [[NeosichtInputPassthrough alloc] init];
+    passthrough.window = window;
+    __weak NeosichtInputPassthrough *weakPassthrough = passthrough;
+    NSEventMask movement = NSEventMaskMouseMoved
+        | NSEventMaskLeftMouseDragged
+        | NSEventMaskRightMouseDragged
+        | NSEventMaskOtherMouseDragged;
+    passthrough.globalMouseMonitor =
+        [NSEvent addGlobalMonitorForEventsMatchingMask:movement
+                                               handler:^(__unused NSEvent *event) {
+            [weakPassthrough update];
+        }];
+    passthrough.localMouseMonitor =
+        [NSEvent addLocalMonitorForEventsMatchingMask:movement
+                                              handler:^NSEvent *(NSEvent *event) {
+            [weakPassthrough update];
+            return event;
+        }];
+    objc_setAssociatedObject(window, &neosicht_input_passthrough_key,
+                             passthrough, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return passthrough;
+}
+
 static void neosicht_prepare_shell_window_class(void) {
     Class cls = objc_getClass("GPUIPanel");
     if (cls == NULL) {
@@ -62,6 +142,22 @@ static void neosicht_prepare_shell_window_class(void) {
         class_replaceMethod(cls, can_main, (IMP)neosicht_returns_no,
                             method_getTypeEncoding(main_method));
     }
+}
+
+BOOL neosicht_set_panel_interaction(BOOL extended, double bar_height) {
+    NSWindow *window = neosicht_panel_state().window;
+    if (window == nil) {
+        return NO;
+    }
+
+    NeosichtInputPassthrough *passthrough =
+        neosicht_input_passthrough(window);
+    passthrough.extended = extended;
+    if (!extended) {
+        passthrough.barHeight = bar_height;
+    }
+    [passthrough update];
+    return YES;
 }
 
 // The exact menu-bar / notch band height on the main screen: the top inset
@@ -97,13 +193,24 @@ double neosicht_pin_shell_window(int cg_level_key, double x, double top,
                                sf.origin.y + sf.size.height - top - height,
                                width, height);
 
+    // Retain the identity of the panel this adapter owns; later interaction
+    // changes must never guess using the application's window ordering.
+    neosicht_panel_state().window = w;
+
     // Remove the menu-bar/notch clamp + refuse key focus, then place the frame.
     neosicht_prepare_shell_window_class();
-    [w setLevel:level];
-    [w setFrame:target display:YES];
 
-    NSRect wf = w.frame;
-    double window_top = wf.origin.y + wf.size.height;
-    double screen_top = sf.origin.y + sf.size.height;
-    return screen_top - window_top;
+    // Defer to the next runloop turn: pinning is called from inside gpui's
+    // effect cycle, and a synchronous setFrame: re-enters gpui's draw/resize
+    // handling while its state is borrowed ("RefCell already borrowed"),
+    // leaving gpui's viewport size stale and popovers clamped to the old
+    // bar-height window.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [w setLevel:level];
+        [w setHasShadow:NO];
+        [w setFrame:target display:NO];
+    });
+
+    // The frame is applied asynchronously; report the requested offset.
+    return top;
 }

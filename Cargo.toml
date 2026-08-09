@@ -1,3 +1,11 @@
 [workspace]
 members = ["crates/*"]
 resolver = "3"
+
+[workspace.dependencies]
+# All zed deps and base-gpui must pin the SAME zed revision or cargo builds
+# two incompatible gpui crates.
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "59b2ebf10351b5c0b5cd4403f01ed0460eeec06d" }
+gpui_platform = { git = "https://github.com/zed-industries/zed.git", rev = "59b2ebf10351b5c0b5cd4403f01ed0460eeec06d" }
+gpui_macos = { git = "https://github.com/zed-industries/zed.git", rev = "59b2ebf10351b5c0b5cd4403f01ed0460eeec06d" }
+base-gpui = { git = "https://github.com/LukeTandjung/base-gpui.git", rev = "b5732893d345066cc5bb9165c822220ba16848e0" }
