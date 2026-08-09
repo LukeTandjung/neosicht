@@ -1,23 +1,4 @@
-//! Experiment 1 — AX menus.
-//!
-//! CLI probing the Accessibility menu tree of running applications, timing
-//! every operation. See docs/EXPERIMENTS.md for pass criteria.
-//!
-//! Subcommands:
-//!   check                 report (and prompt for) Accessibility permission
-//!   frontmost             print the frontmost application (via AX, no AppKit)
-//!   titles [--pid N]      timed: top-level menu titles
-//!   menu <title> [--pid N] timed: one menu's items (title/enabled/shortcut)
-//!   dump [--pid N]        timed: full recursive tree, element count
-//!   press <t> <t> ... [--pid N]  walk the titled path and AXPress the target
-//!
-//! `--pid` defaults to the frontmost application, so e.g.:
-//!   exp-ax-menus titles
-//!   exp-ax-menus menu File
-//!   exp-ax-menus press File "New Window"
-
-use std::ffi::c_void;
-use std::time::Instant;
+//! Accessibility adapter for application menu discovery and actions.
 
 use core_foundation::array::CFArray;
 use core_foundation::base::{CFType, TCFType};
@@ -25,6 +6,7 @@ use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
 use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
+use std::ffi::c_void;
 
 use crate::ports::accessibility::{
     Accessibility, AccessibilityError, AccessibleApplication, AccessibleMenuItem,
@@ -32,7 +14,7 @@ use crate::ports::accessibility::{
 
 // ---------------------------------------------------------------------------
 // Raw FFI. AXUIElement is a plain C API in ApplicationServices — exactly the
-// boundary the real shell will use (see docs/PLAN.md, `neosicht-sys`).
+// boundary used by this adapter.
 // ---------------------------------------------------------------------------
 
 /// AX elements are CoreFoundation objects; we carry them as `CFType` for RAII
@@ -171,6 +153,12 @@ fn shortcut_of(item: &CFType) -> String {
     out
 }
 
+fn find_titled(container: &CFType, title: &str) -> Option<CFType> {
+    menu_entries(container)
+        .into_iter()
+        .find(|entry| string_attr(entry, "AXTitle").as_deref() == Some(title))
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct AxAccessibility;
 
@@ -231,171 +219,6 @@ impl Accessibility for AxAccessibility {
             Ok(())
         } else {
             Err(AccessibilityError(error))
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Diagnostic subcommands
-// ---------------------------------------------------------------------------
-
-fn cmd_check() {
-    let key = CFString::new("AXTrustedCheckOptionPrompt");
-    let options =
-        CFDictionary::from_CFType_pairs(&[(key.as_CFType(), CFBoolean::true_value().as_CFType())]);
-    let trusted = unsafe { AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef()) } != 0;
-    println!(
-        "accessibility permission: {}",
-        if trusted {
-            "GRANTED"
-        } else {
-            "MISSING (prompted)"
-        }
-    );
-}
-
-fn resolve_app(pid_arg: Option<i32>) -> (i32, CFType) {
-    match pid_arg {
-        Some(pid) => (pid, application_element(pid)),
-        None => frontmost_application().expect("cannot determine frontmost application via AX"),
-    }
-}
-
-fn cmd_frontmost() {
-    let started = Instant::now();
-    let (pid, app) = resolve_app(None);
-    let title = string_attr(&app, "AXTitle").unwrap_or_else(|| "?".into());
-    println!("frontmost: {title} (pid {pid}) [{:?}]", started.elapsed());
-}
-
-fn cmd_titles(pid_arg: Option<i32>) {
-    let (pid, app) = resolve_app(pid_arg);
-    let started = Instant::now();
-    let menu_bar = attr(&app, "AXMenuBar").expect("app exposes no AXMenuBar");
-    let titles: Vec<String> = children(&menu_bar)
-        .iter()
-        .filter_map(|item| string_attr(item, "AXTitle"))
-        .collect();
-    let elapsed = started.elapsed();
-    println!("pid {pid}: {} top-level menus in {elapsed:?}", titles.len());
-    println!("  {}", titles.join(" | "));
-}
-
-fn find_titled(container: &CFType, title: &str) -> Option<CFType> {
-    menu_entries(container)
-        .into_iter()
-        .find(|entry| string_attr(entry, "AXTitle").as_deref() == Some(title))
-}
-
-fn cmd_menu(menu_title: &str, pid_arg: Option<i32>) {
-    let (pid, app) = resolve_app(pid_arg);
-    let menu_bar = attr(&app, "AXMenuBar").expect("app exposes no AXMenuBar");
-    let started = Instant::now();
-    let Some(menu) = find_titled(&menu_bar, menu_title) else {
-        eprintln!("no menu titled {menu_title:?} in pid {pid}");
-        std::process::exit(1);
-    };
-    let entries = menu_entries(&menu);
-    let elapsed = started.elapsed();
-    println!(
-        "pid {pid}: menu {menu_title:?} — {} entries in {elapsed:?}",
-        entries.len()
-    );
-    for entry in &entries {
-        let title = string_attr(entry, "AXTitle").unwrap_or_default();
-        if title.is_empty() {
-            println!("  ────────");
-            continue;
-        }
-        let enabled = bool_attr(entry, "AXEnabled").unwrap_or(false);
-        let submenu = !menu_entries(entry).is_empty();
-        println!(
-            "  {}{title}{}  {}",
-            if enabled { "" } else { "· " },
-            if submenu { " ▸" } else { "" },
-            shortcut_of(entry),
-        );
-    }
-}
-
-fn dump_recursive(element: &CFType, depth: usize, count: &mut usize) {
-    for entry in menu_entries(element) {
-        *count += 1;
-        let title = string_attr(&entry, "AXTitle").unwrap_or_default();
-        if !title.is_empty() {
-            println!("{}{title}", "  ".repeat(depth));
-        }
-        dump_recursive(&entry, depth + 1, count);
-    }
-}
-
-fn cmd_dump(pid_arg: Option<i32>) {
-    let (pid, app) = resolve_app(pid_arg);
-    let menu_bar = attr(&app, "AXMenuBar").expect("app exposes no AXMenuBar");
-    let started = Instant::now();
-    let mut count = 0;
-    dump_recursive(&menu_bar, 0, &mut count);
-    println!(
-        "pid {pid}: full tree — {count} elements in {:?}",
-        started.elapsed()
-    );
-}
-
-fn cmd_press(path: &[String], pid_arg: Option<i32>) {
-    let (pid, app) = resolve_app(pid_arg);
-    let menu_bar = attr(&app, "AXMenuBar").expect("app exposes no AXMenuBar");
-    let started = Instant::now();
-    let mut current = menu_bar;
-    for component in path {
-        match find_titled(&current, component) {
-            Some(next) => current = next,
-            None => {
-                eprintln!("path component {component:?} not found in pid {pid}");
-                std::process::exit(1);
-            }
-        }
-    }
-    let err = press(&current);
-    println!(
-        "pressed {:?} in pid {pid}: AXError {err} in {:?}",
-        path.join(" → "),
-        started.elapsed()
-    );
-}
-
-pub fn run() {
-    let mut args: Vec<String> = std::env::args().skip(1).collect();
-
-    let pid_arg = args
-        .iter()
-        .position(|argument| argument == "--pid")
-        .map(|index| {
-            args.remove(index);
-            args.remove(index)
-                .parse::<i32>()
-                .expect("--pid takes an integer")
-        });
-
-    match args.split_first() {
-        Some((command, rest)) => match (command.as_str(), rest) {
-            ("check", _) => cmd_check(),
-            ("frontmost", _) => cmd_frontmost(),
-            ("titles", _) => cmd_titles(pid_arg),
-            ("menu", [title, ..]) => cmd_menu(title, pid_arg),
-            ("dump", _) => cmd_dump(pid_arg),
-            ("press", path) if !path.is_empty() => cmd_press(path, pid_arg),
-            _ => {
-                eprintln!(
-                    "usage: exp-ax-menus check|frontmost|titles|menu <t>|dump|press <t>... [--pid N]"
-                );
-                std::process::exit(2);
-            }
-        },
-        None => {
-            eprintln!(
-                "usage: exp-ax-menus check|frontmost|titles|menu <t>|dump|press <t>... [--pid N]"
-            );
-            std::process::exit(2);
         }
     }
 }

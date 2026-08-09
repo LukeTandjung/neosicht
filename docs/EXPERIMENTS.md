@@ -1,10 +1,10 @@
 # Phase 0 — Derisking Experiments
 
-Each experiment is retained as a diagnostic entrypoint or integration test in
-`crates/neosicht`; its production-worthy code lives in the owning hexagonal
-layer. Findings remain recorded under each section here. Experiments 0–2 are
-existential: all three must pass before building the shell proper. Run them in
-order — a failure earlier in the list invalidates work later in it.
+Production-worthy experiment code was moved into the owning hexagonal layer in
+`crates/neosicht`; experiment-only binaries and failed implementations were
+removed. Findings remain recorded here. Experiments 0–2 are existential: all
+three must pass before building the shell proper. Run them in order — a failure
+earlier in the list invalidates work later in it.
 
 Prerequisite for all experiments: a stable Developer ID signing identity. TCC
 (Accessibility, Location, …) grants are tied to the signing identity;
@@ -174,9 +174,9 @@ Key findings:
 ### 2026-08-09 — Experiment 2: NEGATIVE (private-API suppression) / covering deferred
 
 Tested on macOS 26 (M-series, notched built-in display), SIP enabled, from an
-ordinary process. `crates/neosicht/src/adapters/skylight.rs` resolves all
-relevant `SLS*` symbols at runtime via dlopen/dlsym (never linked). All symbols
-present and callable.
+ordinary process. The experiment runtime-resolved all relevant `SLS*` symbols
+via dlopen/dlsym (never linked); all symbols were present and callable. Its
+implementation was removed after the covering approach succeeded.
 
 What was tried, and what actually happened on screen:
 

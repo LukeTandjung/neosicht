@@ -18,9 +18,9 @@ widgets.
 - **Rust never touches Objective-C objects.** All macOS integration crosses a
   plain C ABI (POD structs, `extern "C"` functions). Unavoidable AppKit
   functionality is wrapped in minimal Objective-C that exports C functions.
-- **Private APIs are quarantined.** SkyLight (`SLS*`) symbols are resolved at
-  runtime via `dlopen`/`dlsym` behind a capability-probing layer with graceful
-  degradation. Nothing outside that adapter may name an `SLS*` symbol.
+- **Private APIs are quarantined.** If a private API is introduced, its symbols
+  must be resolved at runtime behind a capability-probed adapter with graceful
+  degradation. The failed SkyLight experiment is documented but not shipped.
 
 ## The design (v2)
 
@@ -61,12 +61,10 @@ theme engine, non-activating panel windows — stays in this repo.
    eagerly and one menu's items on rail hover; cache per app, invalidate via
    `AXObserver`, set `AXUIElementSetMessagingTimeout`, do all AX work off the
    render path.
-3. **Menu-bar suppression.** Private SkyLight calls
-   (`SLSSetMenuBarVisibilityOverrideOnDisplay` /
-   `SLSSetMenuBarInsetAndAlpha`-family) appear usable from a normal process with
-   SIP enabled. Must be verified across app switches, top-edge hover, displays,
-   and fullscreen transitions. Public fallback: System Settings "auto-hide menu
-   bar: Always" (reveals on hover — degraded, not broken).
+3. **Menu-bar suppression.** SkyLight suppression failed on macOS 26 and its
+   experimental implementation was removed. The working approach uses the public
+   AppKit panel adapter to cover the native bar at level 25. It still needs
+   verification across displays, fullscreen, and Mission Control.
 
 ### Window-manager coexistence
 
@@ -131,7 +129,6 @@ crates/neosicht/
     ├── adapters/        # concrete implementations; raw FFI and unsafe live here
     ├── ui/              # GPUI bar consuming app operations
     ├── impls/           # composition root: adapters → app → UI
-    ├── bin/             # retained diagnostic entrypoints from experiments
     └── main.rs
 ```
 
@@ -157,8 +154,9 @@ Ground rules:
 - Crate boundaries represent cohesive product capabilities, not dependency
   direction by themselves; module boundaries enforce the hexagonal direction.
 
-Core and application layers are unit-tested against in-memory adapters; adapter
-behavior is covered by integration tests and retained diagnostic binaries.
+Application layers are unit-tested against in-memory adapters; adapter behavior
+is covered by focused integration tests. Experimental findings remain in
+`docs/EXPERIMENTS.md`, not in production binaries.
 
 ## Phases
 

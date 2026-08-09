@@ -3102,7 +3102,6 @@ dependencies = [
  "gpui",
  "gpui_macos",
  "gpui_platform",
- "libc",
 ]
 
 [[package]]
