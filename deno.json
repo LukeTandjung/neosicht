@@ -1,4 +1,5 @@
 {
+  "exclude": ["target/"],
   "workspace": [
     "./workspaces/migrations",
     "./workspaces/postgres",
