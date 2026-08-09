@@ -122,11 +122,10 @@ one crate:
 
 ```text
 crates/neosicht/
-├── native/              # C/Objective-C sources owned by macOS adapters
 └── src/
     ├── ports/           # one safe contract per FFI capability
     ├── app/             # wires ports into operations consumed by UI
-    ├── adapters/        # concrete implementations; raw FFI and unsafe live here
+    ├── adapters/        # flat Rust adapters and their native build assets
     ├── ui/              # GPUI bar consuming app operations
     ├── impls/           # composition root: adapters → app → UI
     └── main.rs

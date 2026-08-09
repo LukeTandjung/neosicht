@@ -220,7 +220,7 @@ this: Barik (replace the menu bar with your own bar) and TopBounce (clamp the
 cursor so the native bar never reveals).
 
 Winning recipe (all public API, in `crates/neosicht/src/ui/bar.rs` +
-`native/pin.m`):
+`src/adapters/panel.m`):
 
 1. gpui `WindowKind::PopUp` bar-height window (non-activating, from Exp 0).
 2. Tiny Obj-C shim compiled via `cc` (the first `neosicht-sys` seed), exporting
@@ -266,11 +266,12 @@ returns `canBecomeKeyWindow = YES`, so clicking the bar makes it the key window
 and the previously focused text field resigns key (cursor drops), even though
 the app stays frontmost (so `lsappinfo front` still looked clean).
 
-Fix (in `native/pin.m`, same in-process class override): `class_replaceMethod`
-`GPUIPanel`'s `canBecomeKeyWindow` and `canBecomeMainWindow` to return NO. A
-non-activating window still receives mouse clicks without being key (like the
-real menu bar / Dock), so the bar's buttons keep working. Verified: clicking the
-bar no longer disturbs the focused app's cursor, and clicks still register.
+Fix (in `src/adapters/panel.m`, same in-process class override):
+`class_replaceMethod` `GPUIPanel`'s `canBecomeKeyWindow` and
+`canBecomeMainWindow` to return NO. A non-activating window still receives mouse
+clicks without being key (like the real menu bar / Dock), so the bar's buttons
+keep working. Verified: clicking the bar no longer disturbs the focused app's
+cursor, and clicks still register.
 
 Note for the shell: overlays that DO need keyboard input (launcher / command
 palette) must not be plain `GPUIPanel`s under this override — make them a

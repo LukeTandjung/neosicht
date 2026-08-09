@@ -1,3 +1,3 @@
 fn main() {
-    neosicht::impls::run();
+    neosicht::impls::shell::run();
 }
