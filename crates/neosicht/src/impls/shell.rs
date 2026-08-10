@@ -93,11 +93,22 @@ pub fn run() {
                 theme::ui::section::SectionEvent::PopupExtentChanged,
                 2
             );
-            track_extent!(
-                sections.wifi,
-                wifi::ui::section::SectionEvent::PopupExtentChanged,
-                3
-            );
+            {
+                let extents = extents.clone();
+                let panel = panel.clone();
+                cx.subscribe(&sections.wifi, move |_section, event, _cx| {
+                    let wifi::ui::section::SectionEvent::PopupExtentChanged { extent } = event
+                    else {
+                        return;
+                    };
+                    extents.borrow_mut()[3] = *extent;
+                    let visible = extents.borrow().iter().any(|&extent| extent > 0.0);
+                    if let Err(error) = panel.set_popup_visible(visible) {
+                        eprintln!("failed to update shell panel input: {error:?}");
+                    }
+                })
+                .detach();
+            }
             // When restoring hidden widgets, expand `extents` and restore their
             // corresponding `track_extent!` subscriptions here as well.
 

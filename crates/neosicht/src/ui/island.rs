@@ -117,9 +117,9 @@ impl Render for IslandSection {
                     PopoverPositioner::new()
                         .side(PopoverSide::Bottom)
                         .align(PopoverAlign::End)
-                        // Theme is the far-right 40px control. Include it, the 4px
-                        // control gap, and the bar's 12px inset in this anchor.
-                        .align_offset(px(56.))
+                        .align_offset(px(crate::ui::bar::BAR_INSET
+                            + crate::ui::bar::STATUS_GAP
+                            + theme::ui::section::TRIGGER_WIDTH))
                         .side_offset(px(8.))
                         .collision_padding(px(0.))
                         .child(

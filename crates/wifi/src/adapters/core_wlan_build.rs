@@ -8,5 +8,6 @@ fn main() {
         compile_swift_library("neosicht_wifi_native", &["src/adapters/core_wlan.swift"]);
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rustc-link-lib=framework=CoreWLAN");
+        println!("cargo:rustc-link-lib=framework=SecurityFoundation");
     }
 }

@@ -12,11 +12,10 @@ use base_gpui::popover::{
     PopoverSide, PopoverTrigger, create_popover_handle,
 };
 use base_gpui::switch::{SwitchRoot, SwitchThumb};
-use gpui::{Context, EventEmitter, FontWeight, WeakEntity, Window, div, prelude::*, px, svg};
+use gpui::{Context, EventEmitter, FontWeight, Task, WeakEntity, Window, div, prelude::*, px, svg};
 use theme::core::{palette, typography};
 
-use crate::app::wifi::WifiService;
-use crate::core::network::WifiSnapshot;
+use crate::core::network::{JoinDecision, WifiSnapshot, decide_join};
 
 /// Vertical room, in pixels, the shell must clear below the bar row while the
 /// wi-fi popover is open.
@@ -34,14 +33,24 @@ pub const ASSETS: [(&str, &[u8]); 2] = [
 ];
 
 pub enum SectionEvent {
-    /// The section needs `extent` pixels of window below the bar row
-    /// (0 = collapsed back to the bare bar).
-    PopupExtentChanged { extent: f64 },
+    PopupExtentChanged {
+        extent: f64,
+    },
+    SetEnabled {
+        enabled: bool,
+    },
+    Join {
+        ssid: String,
+        password: Option<String>,
+        remember: bool,
+    },
 }
 
 pub struct WifiSection {
     snapshot: WifiSnapshot,
-    service: Arc<WifiService>,
+    error: Option<String>,
+    observer: Option<Task<()>>,
+    operation: Option<Task<()>>,
     remember: bool,
     password: Arc<Mutex<String>>,
     open: bool,
@@ -54,10 +63,12 @@ pub struct WifiSection {
 impl EventEmitter<SectionEvent> for WifiSection {}
 
 impl WifiSection {
-    pub fn new(service: Arc<WifiService>, _cx: &mut Context<Self>) -> Self {
+    pub fn new(_cx: &mut Context<Self>) -> Self {
         Self {
             snapshot: WifiSnapshot::default(),
-            service,
+            error: None,
+            observer: None,
+            operation: None,
             remember: true,
             password: Arc::new(Mutex::new(String::new())),
             open: false,
@@ -68,16 +79,62 @@ impl WifiSection {
         }
     }
 
+    pub fn own_observer(&mut self, observer: Task<()>) {
+        self.observer = Some(observer);
+    }
+
+    pub fn own_operation(&mut self, operation: Task<()>) {
+        self.operation = Some(operation);
+    }
+
+    pub fn apply_enabled(
+        &mut self,
+        enabled: bool,
+        result: Result<(), crate::ports::wifi::WifiError>,
+        cx: &mut Context<Self>,
+    ) {
+        match result {
+            Ok(()) => {
+                self.snapshot.enabled = enabled;
+                self.error = None;
+            }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    pub fn apply_connected(
+        &mut self,
+        ssid: String,
+        result: Result<(), crate::ports::wifi::WifiError>,
+        cx: &mut Context<Self>,
+    ) {
+        match result {
+            Ok(()) => {
+                self.snapshot.connected_ssid = Some(ssid);
+                self.error = None;
+            }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
     pub fn apply(
         &mut self,
         snapshot: Result<WifiSnapshot, crate::ports::wifi::WifiError>,
         cx: &mut Context<Self>,
     ) {
-        if let Ok(snapshot) = snapshot
-            && self.snapshot != snapshot
-        {
-            self.snapshot = snapshot;
-            cx.notify();
+        match snapshot {
+            Ok(snapshot) if self.snapshot != snapshot => {
+                self.snapshot = snapshot;
+                self.error = None;
+                cx.notify();
+            }
+            Ok(_) => self.error = None,
+            Err(error) => {
+                self.error = Some(error.to_string());
+                cx.notify();
+            }
         }
     }
 
@@ -104,11 +161,8 @@ impl WifiSection {
             let entity = cx.entity().downgrade();
             move |checked: bool, _details: &mut _, _window: &mut Window, cx: &mut gpui::App| {
                 entity
-                    .update(cx, |section: &mut Self, cx| {
-                        if section.service.set_enabled(checked).is_ok() {
-                            section.snapshot.enabled = checked;
-                            cx.notify();
-                        }
+                    .update(cx, |_section: &mut Self, cx| {
+                        cx.emit(SectionEvent::SetEnabled { enabled: checked });
                     })
                     .ok();
             }
@@ -157,19 +211,29 @@ impl WifiSection {
             .mt(px(8.))
             .max_h(px(460.))
             .overflow_y_scroll()
-            .when(self.snapshot.networks.is_empty(), |list| {
-                list.child(
-                    div()
-                        .p(px(8.))
-                        .text_size(px(11.5))
-                        .text_color(palette::muted())
-                        .child(if enabled {
-                            "No networks found"
-                        } else {
-                            "Wi-Fi is off"
-                        }),
-                )
-            })
+            .children(self.error.clone().map(|error| {
+                div()
+                    .p(px(8.))
+                    .text_size(px(10.5))
+                    .text_color(palette::red())
+                    .child(error)
+            }))
+            .when(
+                self.snapshot.networks.is_empty() && self.error.is_none(),
+                |list| {
+                    list.child(
+                        div()
+                            .p(px(8.))
+                            .text_size(px(11.5))
+                            .text_color(palette::muted())
+                            .child(if enabled {
+                                "No networks found"
+                            } else {
+                                "Wi-Fi is off"
+                            }),
+                    )
+                },
+            )
             .children(
                 self.snapshot
                     .networks
@@ -178,7 +242,7 @@ impl WifiSection {
                     .map(|(index, network)| {
                         let current = connected.as_deref() == Some(network.ssid.as_str());
                         let ssid = network.ssid.clone();
-                        let secure = network.secure;
+                        let join_decision = decide_join(network);
                         let signal = network.signal;
                         div()
                             .id(("wifi-network", index))
@@ -204,14 +268,21 @@ impl WifiSection {
                                 if !section.snapshot.enabled || current {
                                     return;
                                 }
-                                if section.service.join(&ssid, None).is_ok() {
-                                    section.snapshot.connected_ssid = Some(ssid.clone());
-                                    cx.notify();
-                                } else if secure {
-                                    section.password.lock().expect("password lock").clear();
+                                if join_decision == JoinDecision::RequirePassword {
+                                    section
+                                        .password
+                                        .lock()
+                                        .unwrap_or_else(|error| error.into_inner())
+                                        .clear();
                                     let handle = section.join_dialog.clone();
                                     window.defer(cx, move |window, cx| {
                                         handle.open_with_payload(index, window, cx);
+                                    });
+                                } else {
+                                    cx.emit(SectionEvent::Join {
+                                        ssid: ssid.clone(),
+                                        password: None,
+                                        remember: true,
                                     });
                                 }
                             }))
@@ -394,11 +465,16 @@ fn join_dialog_content(
                         return;
                     };
                     let ssid = network.ssid.clone();
-                    let password = section.password.lock().expect("password lock").clone();
-                    if section.service.join(&ssid, Some(&password)).is_ok() {
-                        section.snapshot.connected_ssid = Some(ssid);
-                        cx.notify();
-                    }
+                    let password = section
+                        .password
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .clone();
+                    cx.emit(SectionEvent::Join {
+                        ssid,
+                        password: Some(password),
+                        remember: section.remember,
+                    });
                 })
                 .ok();
             if let Some(section) = entity.upgrade() {
@@ -441,7 +517,10 @@ fn join_dialog_content(
                         .upgrade()
                         .map(|section| section.read(cx).password.clone())
                         .unwrap_or_default();
-                    move |value| *password.lock().expect("password lock") = value.to_string()
+                    move |value| {
+                        *password.lock().unwrap_or_else(|error| error.into_inner()) =
+                            value.to_string()
+                    }
                 })
                 .name("password")
                 .aria_label("Password")

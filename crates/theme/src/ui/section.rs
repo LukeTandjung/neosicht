@@ -19,6 +19,7 @@ use crate::core::{palette, typography};
 /// Vertical room, in pixels, the shell must clear below the bar row while the
 /// theme popover is open.
 pub const POPUP_EXTENT: f64 = 540.0;
+pub const TRIGGER_WIDTH: f32 = 40.0;
 
 pub enum SectionEvent {
     /// The section needs `extent` pixels of window below the bar row

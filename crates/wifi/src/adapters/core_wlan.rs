@@ -8,7 +8,7 @@ use crate::ports::wifi::{WifiError, WifiProvider};
 unsafe extern "C" {
     fn neosicht_wifi_snapshot() -> *mut c_char;
     fn neosicht_wifi_set_enabled(enabled: i32) -> i32;
-    fn neosicht_wifi_join(ssid: *const c_char, password: *const c_char) -> i32;
+    fn neosicht_wifi_join(ssid: *const c_char, password: *const c_char, remember: i32) -> i32;
     fn free(pointer: *mut std::ffi::c_void);
 }
 
@@ -24,6 +24,7 @@ struct NativeNetwork {
     ssid: String,
     signal: i32,
     secure: bool,
+    known: bool,
 }
 
 pub struct CoreWlanProvider;
@@ -52,6 +53,7 @@ impl WifiProvider for CoreWlanProvider {
                     ssid: network.ssid,
                     signal: network.signal,
                     secure: network.secure,
+                    known: network.known,
                 })
                 .collect(),
         })
@@ -63,7 +65,7 @@ impl WifiProvider for CoreWlanProvider {
             .ok_or_else(|| WifiError::Failed("failed to change Wi-Fi power".to_owned()))
     }
 
-    fn join(&self, ssid: &str, password: Option<&str>) -> Result<(), WifiError> {
+    fn join(&self, ssid: &str, password: Option<&str>, remember: bool) -> Result<(), WifiError> {
         let ssid = CString::new(ssid).map_err(|error| WifiError::Malformed(error.to_string()))?;
         let password = password
             .map(CString::new)
@@ -72,7 +74,7 @@ impl WifiProvider for CoreWlanProvider {
         let password_pointer = password
             .as_ref()
             .map_or(std::ptr::null(), |value| value.as_ptr());
-        (unsafe { neosicht_wifi_join(ssid.as_ptr(), password_pointer) } == 1)
+        (unsafe { neosicht_wifi_join(ssid.as_ptr(), password_pointer, i32::from(remember)) } == 1)
             .then_some(())
             .ok_or_else(|| WifiError::Failed("failed to join Wi-Fi network".to_owned()))
     }

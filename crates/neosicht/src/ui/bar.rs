@@ -20,7 +20,8 @@ use wifi::ui::section::WifiSection;
 
 pub const BAR_HEIGHT: f32 = 32.0;
 const CORNER_RADIUS: f32 = 12.0;
-const BAR_INSET: f32 = 12.0;
+pub const BAR_INSET: f32 = 12.0;
+pub const STATUS_GAP: f32 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BarGeometry {
@@ -69,7 +70,7 @@ impl Render for Bar {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(4.))
+                        .gap(px(STATUS_GAP))
                         // .child(self.sections.notifications.clone())
                         // .child(self.sections.volume.clone())
                         // .child(self.sections.bluetooth.clone())
