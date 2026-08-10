@@ -13,6 +13,17 @@
 
 Neosicht keeps WindowServer and normal macOS applications while replacing visible shell chrome with a compact top bar. It combines AeroSpace workspaces, application menus, Wi-Fi, battery, weather, music, calendar, and persistent Base16 themes in one native GPUI panel.
 
+## Preview
+
+![Neosicht bar](assets/screenshots/bar.png)
+
+<details>
+<summary>Application menu popover</summary>
+
+![Neosicht application menu](assets/screenshots/app-menu.png)
+
+</details>
+
 > [!IMPORTANT]
 > Neosicht is under active development and currently targets Apple silicon Macs. It uses macOS Accessibility, Location, Calendar, and Automation permissions for the corresponding widgets.
 
