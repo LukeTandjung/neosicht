@@ -8,6 +8,3 @@ build = "src/adapters/app_icons_build.rs"
 [dependencies]
 base-gpui = { workspace = true }
 gpui = { workspace = true }
-
-[build-dependencies]
-cc = "1"

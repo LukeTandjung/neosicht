@@ -41,7 +41,7 @@ impl AppIconProvider for AppKitIconProvider {
 fn copy_app_icon_png(bundle_id: Option<&str>, app_name: &str) -> Option<Vec<u8>> {
     use std::ffi::CString;
 
-    #[link(name = "workspaces_native")]
+    #[link(name = "neosicht_workspaces_native")]
     unsafe extern "C" {
         fn workspaces_copy_app_icon_png(
             bundle_id: *const std::ffi::c_char,
