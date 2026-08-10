@@ -1,7 +1,7 @@
 //! The themer: a four-stripe swatch button opening the base16 theme picker
 //! with appearance toggle, palette list, typeface sets, and accent slots.
-//! Placeholder-only for now — selections are local UI state; the theme engine
-//! (phase 2) will own applying them.
+
+use std::sync::Arc;
 
 use base_gpui::popover::{
     PopoverAlign, PopoverHandle, PopoverPopup, PopoverPortal, PopoverPositioner, PopoverRoot,
@@ -11,7 +11,9 @@ use base_gpui::toggle::Toggle;
 use base_gpui::toggle_group::ToggleGroup;
 use gpui::{Context, EventEmitter, FontWeight, Rgba, Window, div, prelude::*, px, rgb};
 
+use crate::app::preferences::ThemeService;
 use crate::core::catalog::{self, ACCENT_SLOTS};
+use crate::core::preferences::ThemePreferences;
 use crate::core::{palette, typography};
 
 /// Vertical room, in pixels, the shell must clear below the bar row while the
@@ -32,21 +34,46 @@ pub struct ThemeSection {
     open: bool,
     popup_extent: f64,
     popover: PopoverHandle<()>,
+    service: Arc<ThemeService>,
 }
 
 impl EventEmitter<SectionEvent> for ThemeSection {}
 
 impl ThemeSection {
-    pub fn new(_cx: &mut Context<Self>) -> Self {
+    pub fn new(service: Arc<ThemeService>, _cx: &mut Context<Self>) -> Self {
+        let preferences = service.load().unwrap_or_default();
+        palette::activate(preferences);
+        typography::activate(preferences.font);
         Self {
-            light: false,
-            selected_theme: 0,
-            selected_font: 0,
-            selected_accent: 4,
+            light: preferences.light,
+            selected_theme: preferences.theme,
+            selected_font: preferences.font,
+            selected_accent: preferences.accent,
             open: false,
             popup_extent: 0.0,
             popover: create_popover_handle(),
+            service,
         }
+    }
+
+    fn apply_preferences(&mut self, cx: &mut Context<Self>) {
+        let preferences = ThemePreferences {
+            light: self.light,
+            theme: self.selected_theme,
+            font: self.selected_font,
+            accent: self.selected_accent,
+        }
+        .normalized();
+        self.light = preferences.light;
+        self.selected_theme = preferences.theme;
+        self.selected_font = preferences.font;
+        self.selected_accent = preferences.accent;
+        palette::activate(preferences);
+        typography::activate(preferences.font);
+        if let Err(error) = self.service.save(preferences) {
+            eprintln!("failed to save theme preferences: {error:?}");
+        }
+        cx.refresh_windows();
     }
 
     fn set_popup_extent(&mut self, extent: f64, cx: &mut Context<Self>) {
@@ -68,7 +95,7 @@ impl ThemeSection {
                 entity
                     .update(cx, |section: &mut Self, cx| {
                         section.light = light;
-                        cx.notify();
+                        section.apply_preferences(cx);
                     })
                     .ok();
             }
@@ -150,7 +177,7 @@ impl ThemeSection {
                     .hover(|style| style.border_color(palette::accent()))
                     .on_click(cx.listener(move |section, _event, _window, cx| {
                         section.selected_theme = index;
-                        cx.notify();
+                        section.apply_preferences(cx);
                     }))
                     .child(
                         div()
@@ -243,7 +270,7 @@ impl ThemeSection {
                                 .hover(|style| style.border_color(palette::accent()))
                                 .on_click(cx.listener(move |section, _event, _window, cx| {
                                     section.selected_font = index;
-                                    cx.notify();
+                                    section.apply_preferences(cx);
                                 }))
                                 .child(
                                     div()
@@ -303,7 +330,7 @@ impl ThemeSection {
                         .cursor_pointer()
                         .on_click(cx.listener(move |section, _event, _window, cx| {
                             section.selected_accent = index;
-                            cx.notify();
+                            section.apply_preferences(cx);
                         }))
                 }),
             ))
@@ -369,6 +396,7 @@ impl Render for ThemeSection {
                                 .id("theme-popup")
                                 .w(px(344.))
                                 .p(px(12.))
+                                .font_family(typography::ui())
                                 .rounded(px(12.))
                                 .bg(palette::bar())
                                 .border_1()

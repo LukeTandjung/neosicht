@@ -1,102 +1,106 @@
-//! The active palette every bar section draws from. Hard-coded to Tokyo Night
-//! dark until the base16 theme engine (phase 2) makes it dynamic; the accessor
-//! names mirror the design's CSS variables so sections read like the design.
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use gpui::{Rgba, rgb, rgba};
 
-/// Desktop background / darkest surface (`--bg`).
+use crate::core::catalog::{self, ACCENT_SLOTS};
+use crate::core::preferences::ThemePreferences;
+
+static LIGHT: AtomicBool = AtomicBool::new(false);
+static THEME: AtomicUsize = AtomicUsize::new(0);
+static ACCENT: AtomicUsize = AtomicUsize::new(4);
+
+pub fn activate(preferences: ThemePreferences) {
+    let preferences = preferences.normalized();
+    LIGHT.store(preferences.light, Ordering::Relaxed);
+    THEME.store(preferences.theme, Ordering::Relaxed);
+    ACCENT.store(preferences.accent, Ordering::Relaxed);
+}
+
+fn active_slots() -> &'static [u32; 16] {
+    catalog::catalog()[THEME.load(Ordering::Relaxed)].swatches(LIGHT.load(Ordering::Relaxed))
+}
+
 pub fn bg() -> Rgba {
-    rgb(0x1a1b26)
+    rgb(active_slots()[0])
 }
 
-/// Bar and popover surface (`--bar`).
 pub fn bar() -> Rgba {
-    rgb(0x24283b)
+    rgb(active_slots()[1])
 }
 
-/// Raised surface for hovers and selected rows (`--raise`).
 pub fn raise() -> Rgba {
-    rgb(0x2f3549)
+    rgb(active_slots()[2])
 }
 
-/// The resting (inactive) fill of chips and pills: `raise` at 45% alpha.
 pub fn raise_faint() -> Rgba {
-    rgba(0x2f354973)
+    let color = active_slots()[2];
+    rgba((color << 8) | 0x73)
 }
 
-/// Hairline borders (`--bd`).
 pub fn border() -> Rgba {
-    rgb(0x2f3549)
+    rgb(active_slots()[2])
 }
 
-/// Disabled / decorative ink (`--mut`).
 pub fn muted() -> Rgba {
-    rgb(0x444b6a)
+    rgb(active_slots()[3])
 }
 
-/// Secondary text (`--sub`).
 pub fn subtle() -> Rgba {
-    rgb(0x787c99)
+    rgb(active_slots()[4])
 }
 
-/// Body text (`--fg`).
 pub fn text() -> Rgba {
-    rgb(0xa9b1d6)
+    rgb(active_slots()[5])
 }
 
-/// Emphasized text (`--fgb`).
 pub fn text_bright() -> Rgba {
-    rgb(0xc0caf5)
+    rgb(active_slots()[6])
 }
 
-/// Dark ink for text drawn on accent-colored surfaces.
 pub fn ink() -> Rgba {
-    rgb(0x1a1b26)
+    rgb(active_slots()[0])
 }
 
-/// The user-selected accent slot (`--acc`), currently blue.
 pub fn accent() -> Rgba {
-    rgb(0x7aa2f7)
+    rgb(active_slots()[ACCENT_SLOTS[ACCENT.load(Ordering::Relaxed)]])
 }
 
 pub fn red() -> Rgba {
-    rgb(0xf7768e)
+    rgb(active_slots()[8])
 }
 
 pub fn orange() -> Rgba {
-    rgb(0xff9e64)
+    rgb(active_slots()[9])
 }
 
 pub fn yellow() -> Rgba {
-    rgb(0xe0af68)
+    rgb(active_slots()[10])
 }
 
 pub fn green() -> Rgba {
-    rgb(0x9ece6a)
+    rgb(active_slots()[11])
 }
 
 pub fn cyan() -> Rgba {
-    rgb(0x2ac3de)
+    rgb(active_slots()[12])
 }
 
 pub fn blue() -> Rgba {
-    rgb(0x7aa2f7)
+    rgb(active_slots()[13])
 }
 
 pub fn magenta() -> Rgba {
-    rgb(0xbb9af7)
+    rgb(active_slots()[14])
 }
 
 pub fn transparent() -> Rgba {
     rgba(0x00000000)
 }
 
-/// Full-window dim behind modal dialogs.
 pub fn scrim() -> Rgba {
     rgba(0x08080c80)
 }
 
-/// One of the sixteen base16 slots of the active palette.
 pub fn slot(index: usize) -> Rgba {
-    rgb(crate::core::catalog::catalog()[0].dark[index % 16])
+    rgb(active_slots()[index % 16])
 }

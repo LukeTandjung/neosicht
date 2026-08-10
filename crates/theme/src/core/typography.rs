@@ -1,8 +1,20 @@
-//! The active font families, mirroring the design's `--ui`/`--mono` variables.
-//! Hard-coded to the Plex set until the theme engine (phase 2) makes it
-//! dynamic.
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// Monospace family for numerals, shortcuts, and small tracking labels.
+use crate::core::catalog;
+
+static FONT: AtomicUsize = AtomicUsize::new(0);
+
+pub fn activate(font: usize) {
+    FONT.store(
+        font.min(catalog::font_sets().len().saturating_sub(1)),
+        Ordering::Relaxed,
+    );
+}
+
+pub fn ui() -> &'static str {
+    catalog::font_sets()[FONT.load(Ordering::Relaxed)].ui_family
+}
+
 pub fn mono() -> &'static str {
-    "JetBrains Mono"
+    catalog::font_sets()[FONT.load(Ordering::Relaxed)].mono_family
 }

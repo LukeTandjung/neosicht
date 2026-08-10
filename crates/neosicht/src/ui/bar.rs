@@ -1,18 +1,19 @@
 use gpui::{
     App, Bounds, Context, Entity, Window, WindowBackgroundAppearance, WindowKind, WindowOptions,
-    div, prelude::*, px, rgb, size,
+    div, prelude::*, px, size,
 };
 
 use workspaces::ui::section::WorkspacesSection;
 
 use battery::ui::section::BatterySection;
+use theme::core::palette;
+use theme::ui::section::ThemeSection;
 
 use crate::ui::island::IslandSection;
 
 // Hidden standalone widgets are intentionally preserved for easy restoration:
 // use bluetooth::ui::section::BluetoothSection;
 // use notifications::ui::section::NotificationsSection;
-// use theme::ui::section::ThemeSection;
 // use volume::ui::section::VolumeSection;
 // use wallpaper::ui::section::WallpaperSection;
 // use wifi::ui::section::WifiSection;
@@ -39,7 +40,7 @@ pub struct BarSections {
     // pub bluetooth: Entity<BluetoothSection>,
     // pub wifi: Entity<WifiSection>,
     // pub wallpaper: Entity<WallpaperSection>,
-    // pub theme: Entity<ThemeSection>,
+    pub theme: Entity<ThemeSection>,
 }
 
 struct Bar {
@@ -57,9 +58,10 @@ impl Render for Bar {
                 .flex()
                 .items_center()
                 .px_3()
-                .bg(rgb(0x24283b))
+                .bg(palette::bar())
                 .rounded(px(CORNER_RADIUS))
-                .text_color(rgb(0xc0caf5))
+                .text_color(palette::text_bright())
+                .font_family(theme::core::typography::ui())
                 .text_sm()
                 .child(self.sections.workspaces.clone())
                 .child(div().flex_1())
@@ -69,8 +71,8 @@ impl Render for Bar {
                 // .child(self.sections.wifi.clone())
                 .child(self.sections.battery.clone())
                 // .child(self.sections.wallpaper.clone())
-                // .child(self.sections.theme.clone())
-                .child(self.sections.island.clone()),
+                .child(self.sections.island.clone())
+                .child(self.sections.theme.clone()),
         )
     }
 }

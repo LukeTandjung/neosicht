@@ -25,7 +25,7 @@ pub fn run() {
                 // bluetooth: cx.new(bluetooth::ui::section::BluetoothSection::new),
                 // wifi: cx.new(wifi::ui::section::WifiSection::new),
                 // wallpaper: cx.new(wallpaper::ui::section::WallpaperSection::new),
-                // theme: cx.new(theme::ui::section::ThemeSection::new),
+                theme: theme::impls::section::theme_section(cx),
             };
 
             let geometry = match ui::bar::open(cx, sections.clone()) {
@@ -60,7 +60,7 @@ pub fn run() {
                 }
             }
 
-            let extents = Rc::new(RefCell::new([0.0_f64; 2]));
+            let extents = Rc::new(RefCell::new([0.0_f64; 3]));
 
             macro_rules! track_extent {
                 ($entity:expr, $event:path, $slot:expr) => {
@@ -87,6 +87,11 @@ pub fn run() {
                 sections.island,
                 ui::island::IslandEvent::PopupExtentChanged,
                 1
+            );
+            track_extent!(
+                sections.theme,
+                theme::ui::section::SectionEvent::PopupExtentChanged,
+                2
             );
             // When restoring hidden widgets, expand `extents` and restore their
             // corresponding `track_extent!` subscriptions here as well.

@@ -129,16 +129,16 @@ pub fn font_sets() -> &'static [FontSet] {
             mono_family: "JetBrains Mono",
         },
         FontSet {
-            label: "Grotesk",
-            sample: "mono 0123",
-            ui_family: "Space Grotesk",
-            mono_family: "Space Mono",
-        },
-        FontSet {
             label: "Neue",
             sample: "mono 0123",
             ui_family: "Helvetica Neue",
-            mono_family: "IBM Plex Mono",
+            mono_family: "JetBrains Mono",
+        },
+        FontSet {
+            label: "Mono",
+            sample: "mono 0123",
+            ui_family: "JetBrains Mono",
+            mono_family: "JetBrains Mono",
         },
     ]
 }
