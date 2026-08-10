@@ -1,70 +1,57 @@
-//! Hard-coded Tokyo Night values matching the shell bar until the base16
-//! theme engine (phase 2) replaces them.
-
-use gpui::{Rgba, rgb, rgba};
+use gpui::Rgba;
 
 use crate::core::workspace::HUE_SLOT_COUNT;
 
 pub fn bar() -> Rgba {
-    rgb(0x24283b)
+    theme::core::palette::popup_background()
 }
 
 pub fn raise() -> Rgba {
-    rgb(0x2f3549)
+    theme::core::palette::selection()
 }
 
-/// The resting (inactive) fill of chips and pills: `raise` at 45% alpha.
 pub fn raise_faint() -> Rgba {
-    rgba(0x2f354973)
+    theme::core::palette::raise_faint()
 }
 
 pub fn border() -> Rgba {
-    rgb(0x2f3549)
+    theme::core::palette::border()
 }
 
 pub fn muted() -> Rgba {
-    rgb(0x444b6a)
+    theme::core::palette::muted()
 }
 
-/// Border of the active pill: subtle text color at 28% alpha.
 pub fn active_border() -> Rgba {
-    rgba(0x787c9948)
+    Rgba {
+        a: 0.28,
+        ..theme::core::palette::subtle()
+    }
 }
 
 pub fn text() -> Rgba {
-    rgb(0xa9b1d6)
+    theme::core::palette::text()
 }
 
 pub fn text_bright() -> Rgba {
-    rgb(0xc0caf5)
+    theme::core::palette::text_bright()
 }
 
-/// Dark ink for text drawn on accent-colored surfaces.
 pub fn ink() -> Rgba {
-    rgb(0x1a1b26)
+    theme::core::palette::ink()
 }
 
 pub fn accent() -> Rgba {
-    rgb(0x7aa2f7)
+    theme::core::palette::accent()
 }
 
 pub fn transparent() -> Rgba {
-    rgba(0x00000000)
+    theme::core::palette::transparent()
 }
 
-/// The eight accent hues application tiles and workspace numbers draw from.
 pub fn hue(slot: usize) -> Rgba {
-    const HUES: [u32; HUE_SLOT_COUNT] = [
-        0xf7768e, // red
-        0xff9e64, // orange
-        0xe0af68, // yellow
-        0x9ece6a, // green
-        0x73daca, // teal
-        0x2ac3de, // cyan
-        0x7aa2f7, // blue
-        0xbb9af7, // magenta
-    ];
-    rgb(HUES[slot % HUES.len()])
+    const SLOTS: [usize; HUE_SLOT_COUNT] = [8, 9, 10, 11, 12, 13, 14, 15];
+    theme::core::palette::slot(SLOTS[slot % SLOTS.len()])
 }
 
 pub fn hue_faint(slot: usize) -> Rgba {

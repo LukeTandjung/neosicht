@@ -117,9 +117,9 @@ impl Render for IslandSection {
                     PopoverPositioner::new()
                         .side(PopoverSide::Bottom)
                         .align(PopoverAlign::End)
-                        // The trigger sits at the bar row's 12px padding; push the
-                        // popup right so its edge lines up with the bar's edge.
-                        .align_offset(px(12.))
+                        // Theme is the far-right 40px control. Include it, the 4px
+                        // control gap, and the bar's 12px inset in this anchor.
+                        .align_offset(px(56.))
                         .side_offset(px(8.))
                         .collision_padding(px(0.))
                         .child(
@@ -128,9 +128,7 @@ impl Render for IslandSection {
                                 .w(px(604.))
                                 .p(px(16.))
                                 .rounded(px(12.))
-                                .bg(palette::bar())
-                                .border_1()
-                                .border_color(palette::border())
+                                .bg(palette::popup_background())
                                 .shadow_lg()
                                 .flex()
                                 .items_start()

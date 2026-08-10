@@ -178,7 +178,7 @@ impl WorkspacesSection {
                     .px(px(8.))
                     .rounded(px(6.))
                     .border_1()
-                    .text_size(px(12.5))
+                    .text_size(px(11.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(palette::text_bright())
                     .whitespace_nowrap()
@@ -210,8 +210,6 @@ impl WorkspacesSection {
                                 .p(px(6.))
                                 .rounded(px(12.))
                                 .bg(palette::bar())
-                                .border_1()
-                                .border_color(palette::border())
                                 .shadow_lg()
                                 .flex()
                                 .items_start()
@@ -256,7 +254,7 @@ impl WorkspacesSection {
                     .px(px(9.))
                     .py(px(6.))
                     .rounded(px(6.))
-                    .text_size(px(12.5))
+                    .text_size(px(11.))
                     .cursor_pointer()
                     .when(selected, |rail_entry| rail_entry.bg(palette::raise()))
                     .text_color(if selected {
@@ -318,7 +316,7 @@ impl WorkspacesSection {
                             .flex_none()
                             .px(px(8.))
                             .rounded(px(6.))
-                            .text_size(px(12.5))
+                            .text_size(px(11.))
                             .text_color(if spec.enabled {
                                 palette::text()
                             } else {
@@ -342,7 +340,7 @@ impl WorkspacesSection {
                             .children(spec.shortcut.clone().map(|shortcut| {
                                 div()
                                     .ml_auto()
-                                    .text_size(px(10.5))
+                                    .text_size(px(9.5))
                                     .text_color(palette::muted())
                                     .child(shortcut)
                             }))
@@ -505,7 +503,7 @@ impl Render for WorkspacesSection {
         div()
             .flex()
             .items_center()
-            .gap(px(6.))
+            .gap(px(4.))
             .children(chip)
             .child(self.render_pills(cx))
     }

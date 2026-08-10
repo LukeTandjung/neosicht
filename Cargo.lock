@@ -7248,6 +7248,7 @@ version = "0.1.0"
 dependencies = [
  "base-gpui",
  "gpui",
+ "theme",
 ]
 
 [[package]]

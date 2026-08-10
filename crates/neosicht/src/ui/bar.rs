@@ -65,14 +65,20 @@ impl Render for Bar {
                 .text_sm()
                 .child(self.sections.workspaces.clone())
                 .child(div().flex_1())
-                // .child(self.sections.notifications.clone())
-                // .child(self.sections.volume.clone())
-                // .child(self.sections.bluetooth.clone())
-                .child(self.sections.wifi.clone())
-                .child(self.sections.battery.clone())
-                // .child(self.sections.wallpaper.clone())
-                .child(self.sections.island.clone())
-                .child(self.sections.theme.clone()),
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(4.))
+                        // .child(self.sections.notifications.clone())
+                        // .child(self.sections.volume.clone())
+                        // .child(self.sections.bluetooth.clone())
+                        .child(self.sections.wifi.clone())
+                        .child(self.sections.battery.clone())
+                        // .child(self.sections.wallpaper.clone())
+                        .child(self.sections.island.clone())
+                        .child(self.sections.theme.clone()),
+                ),
         )
     }
 }

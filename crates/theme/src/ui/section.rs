@@ -389,6 +389,7 @@ impl Render for ThemeSection {
                     PopoverPositioner::new()
                         .side(PopoverSide::Bottom)
                         .align(PopoverAlign::End)
+                        .align_offset(px(12.))
                         .side_offset(px(8.))
                         .collision_padding(px(0.))
                         .child(
@@ -398,9 +399,7 @@ impl Render for ThemeSection {
                                 .p(px(12.))
                                 .font_family(typography::ui())
                                 .rounded(px(12.))
-                                .bg(palette::bar())
-                                .border_1()
-                                .border_color(palette::border())
+                                .bg(palette::popup_background())
                                 .shadow_lg()
                                 .child_any(
                                     div()

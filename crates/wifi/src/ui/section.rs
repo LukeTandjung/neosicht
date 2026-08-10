@@ -150,10 +150,13 @@ impl WifiSection {
         let enabled = self.snapshot.enabled;
         let connected = self.snapshot.connected_ssid.clone();
         div()
+            .id("wifi-networks")
             .flex()
             .flex_col()
             .gap(px(2.))
             .mt(px(8.))
+            .max_h(px(460.))
+            .overflow_y_scroll()
             .when(self.snapshot.networks.is_empty(), |list| {
                 list.child(
                     div()
@@ -176,11 +179,7 @@ impl WifiSection {
                         let current = connected.as_deref() == Some(network.ssid.as_str());
                         let ssid = network.ssid.clone();
                         let secure = network.secure;
-                        let bars = match network.signal {
-                            -55.. => "▮▮▮",
-                            -70..=-56 => "▮▮▯",
-                            _ => "▮▯▯",
-                        };
+                        let signal = network.signal;
                         div()
                             .id(("wifi-network", index))
                             .flex()
@@ -216,15 +215,29 @@ impl WifiSection {
                                     });
                                 }
                             }))
-                            .child(div().size(px(6.)).rounded_full().bg(if current {
-                                palette::green()
-                            } else {
-                                palette::muted()
-                            }))
-                            .child(network.ssid.clone())
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .size(px(6.))
+                                    .rounded_full()
+                                    .bg(if current {
+                                        palette::green()
+                                    } else {
+                                        palette::muted()
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .whitespace_nowrap()
+                                    .overflow_hidden()
+                                    .child(network.ssid.clone()),
+                            )
                             .child(
                                 div()
                                     .ml_auto()
+                                    .flex_none()
                                     .flex()
                                     .items_center()
                                     .gap(px(8.))
@@ -236,13 +249,7 @@ impl WifiSection {
                                                 .text_color(palette::muted()),
                                         )
                                     })
-                                    .child(
-                                        div()
-                                            .font_family(typography::mono())
-                                            .text_size(px(10.))
-                                            .text_color(palette::muted())
-                                            .child(bars),
-                                    ),
+                                    .child(signal_indicator(signal)),
                             )
                     }),
             )
@@ -307,6 +314,32 @@ impl WifiSection {
                     ),
             )
     }
+}
+
+fn signal_indicator(rssi: i32) -> gpui::Div {
+    let strength = if rssi >= -55 {
+        3
+    } else if rssi >= -70 {
+        2
+    } else {
+        1
+    };
+    div()
+        .h(px(12.))
+        .flex()
+        .items_end()
+        .gap(px(2.))
+        .children((1..=3).map(|bar| {
+            div()
+                .w(px(3.))
+                .h(px(3. + bar as f32 * 2.5))
+                .rounded(px(1.))
+                .bg(if bar <= strength {
+                    palette::subtle()
+                } else {
+                    palette::border()
+                })
+        }))
 }
 
 fn join_dialog_content(
@@ -573,9 +606,7 @@ impl Render for WifiSection {
                                 .w(px(264.))
                                 .p(px(12.))
                                 .rounded(px(12.))
-                                .bg(palette::bar())
-                                .border_1()
-                                .border_color(palette::border())
+                                .bg(palette::popup_background())
                                 .shadow_lg()
                                 .child_any(
                                     div()

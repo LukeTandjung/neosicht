@@ -41,6 +41,16 @@ pub fn border() -> Rgba {
     rgb(active_slots()[2])
 }
 
+/// Base16 base00: the Stylix default surface for overlays.
+pub fn popup_background() -> Rgba {
+    rgb(active_slots()[0])
+}
+
+/// Base16 base02: the Stylix selection background.
+pub fn selection() -> Rgba {
+    rgb(active_slots()[2])
+}
+
 pub fn muted() -> Rgba {
     rgb(active_slots()[3])
 }
