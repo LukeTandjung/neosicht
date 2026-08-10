@@ -18,11 +18,20 @@ Neosicht keeps WindowServer and normal macOS applications while replacing visibl
 ![Neosicht bar](assets/screenshots/bar.png)
 
 <details>
+<summary>Theme popover</summary>
+
+![Neosicht theme popover](assets/screenshots/theme-popover.png)
+
+</details>
+
+<details>
 <summary>Application menu popover</summary>
 
 ![Neosicht application menu](assets/screenshots/app-menu.png)
 
 </details>
+
+Additional panels include live application menus, Wi-Fi networks and joining, weather, music controls, calendar events, and more.
 
 > [!IMPORTANT]
 > Neosicht is under active development and currently targets Apple silicon Macs. It uses macOS Accessibility, Location, Calendar, and Automation permissions for the corresponding widgets.
