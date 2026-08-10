@@ -22,7 +22,7 @@ pub struct AerospaceProvider {
 
 impl AerospaceProvider {
     pub fn new() -> Self {
-        Self::with_binary("aerospace")
+        Self::with_binary(option_env!("NEOSICHT_AEROSPACE_BIN").unwrap_or("aerospace"))
     }
 
     /// Override the binary path, e.g. when aerospace is not on PATH.

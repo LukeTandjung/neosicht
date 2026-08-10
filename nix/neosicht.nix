@@ -3,6 +3,7 @@
   rustPlatform,
   swift,
   apple-sdk,
+  aerospace,
   jq,
 }:
 rustPlatform.buildRustPackage {
@@ -15,6 +16,7 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [swift jq];
 
   preBuild = ''
+    export NEOSICHT_AEROSPACE_BIN="${lib.getExe aerospace}"
     export SWIFTC="$(command -v swiftc)"
     export SDKROOT="${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
     export SWIFT_RUNTIME_LIBRARY_PATHS="$($SWIFTC -print-target-info | ${lib.getExe jq} -r '.paths.runtimeLibraryPaths | join(":")'):$SDKROOT/usr/lib/swift"
