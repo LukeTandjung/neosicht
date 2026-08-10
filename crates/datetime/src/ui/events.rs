@@ -20,11 +20,11 @@ impl UpcomingEventsSection {
         }
     }
 
-    pub(crate) fn own_observer(&mut self, observer: Task<()>) {
+    pub fn own_observer(&mut self, observer: Task<()>) {
         self.observer = Some(observer);
     }
 
-    pub(crate) fn apply(
+    pub fn apply(
         &mut self,
         loaded: Result<Vec<CalendarEvent>, CalendarReadError>,
         cx: &mut Context<Self>,

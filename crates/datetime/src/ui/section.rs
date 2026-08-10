@@ -22,7 +22,7 @@ impl ClockSection {
         }
     }
 
-    pub(crate) fn own_observer(&mut self, observer: Task<()>) {
+    pub fn own_observer(&mut self, observer: Task<()>) {
         self.observer = Some(observer);
     }
 
@@ -30,7 +30,7 @@ impl ClockSection {
         self.snapshot.local_date
     }
 
-    pub(crate) fn apply(&mut self, snapshot: ClockSnapshot, cx: &mut Context<Self>) {
+    pub fn apply(&mut self, snapshot: ClockSnapshot, cx: &mut Context<Self>) {
         if self.snapshot != snapshot {
             self.snapshot = snapshot;
             cx.notify();
