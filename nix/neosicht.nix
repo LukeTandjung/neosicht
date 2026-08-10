@@ -27,6 +27,7 @@ rustPlatform.buildRustPackage {
     mkdir -p "$app/MacOS" "$app/Resources"
     mv "$out/bin/neosicht" "$app/MacOS/neosicht"
     cp crates/neosicht/src/Info.plist "$app/Info.plist"
+    cp crates/neosicht/src/resources/Neosicht.icns "$app/Resources/Neosicht.icns"
     ln -s ../Applications/Neosicht.app/Contents/MacOS/neosicht "$out/bin/neosicht"
   '';
 

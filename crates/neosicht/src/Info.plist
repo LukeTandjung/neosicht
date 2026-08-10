@@ -10,6 +10,8 @@
     <string>neosicht</string>
     <key>CFBundleExecutable</key>
     <string>neosicht</string>
+    <key>CFBundleIconFile</key>
+    <string>Neosicht</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
