@@ -1,7 +1,4 @@
-//! The wi-fi widget: an arcs button opening the network popover with a power
-//! switch and network list, plus the WPA2 join dialog for unknown secure
-//! networks. Placeholder-only for now — networks are static until a wi-fi
-//! provider feeds them.
+use std::sync::{Arc, Mutex};
 
 use base_gpui::button::ButtonRoot;
 use base_gpui::checkbox::{CheckboxIndicator, CheckboxRoot};
@@ -18,6 +15,9 @@ use base_gpui::switch::{SwitchRoot, SwitchThumb};
 use gpui::{Context, EventEmitter, FontWeight, WeakEntity, Window, div, prelude::*, px, svg};
 use theme::core::{palette, typography};
 
+use crate::app::wifi::WifiService;
+use crate::core::network::WifiSnapshot;
+
 /// Vertical room, in pixels, the shell must clear below the bar row while the
 /// wi-fi popover is open.
 pub const POPUP_EXTENT: f64 = 210.0;
@@ -33,35 +33,6 @@ pub const ASSETS: [(&str, &[u8]); 2] = [
     (LOCK_ICON, include_bytes!("icons/lock.svg")),
 ];
 
-struct Network {
-    name: &'static str,
-    bars: &'static str,
-    secure: bool,
-}
-
-const NETWORKS: [Network; 4] = [
-    Network {
-        name: "aeropress-5G",
-        bars: "▮▮▮",
-        secure: true,
-    },
-    Network {
-        name: "aeropress",
-        bars: "▮▮▯",
-        secure: true,
-    },
-    Network {
-        name: "tiling-only-zone",
-        bars: "▮▯▯",
-        secure: true,
-    },
-    Network {
-        name: "hotel-guest",
-        bars: "▮▯▯",
-        secure: false,
-    },
-];
-
 pub enum SectionEvent {
     /// The section needs `extent` pixels of window below the bar row
     /// (0 = collapsed back to the bare bar).
@@ -69,10 +40,10 @@ pub enum SectionEvent {
 }
 
 pub struct WifiSection {
-    enabled: bool,
-    active: usize,
-    known: [bool; NETWORKS.len()],
+    snapshot: WifiSnapshot,
+    service: Arc<WifiService>,
     remember: bool,
+    password: Arc<Mutex<String>>,
     open: bool,
     join_open: bool,
     popup_extent: f64,
@@ -83,17 +54,30 @@ pub struct WifiSection {
 impl EventEmitter<SectionEvent> for WifiSection {}
 
 impl WifiSection {
-    pub fn new(_cx: &mut Context<Self>) -> Self {
+    pub fn new(service: Arc<WifiService>, _cx: &mut Context<Self>) -> Self {
         Self {
-            enabled: true,
-            active: 0,
-            known: [true, false, false, false],
+            snapshot: WifiSnapshot::default(),
+            service,
             remember: true,
+            password: Arc::new(Mutex::new(String::new())),
             open: false,
             join_open: false,
             popup_extent: 0.0,
             popover: create_popover_handle(),
             join_dialog: create_dialog_handle(),
+        }
+    }
+
+    pub fn apply(
+        &mut self,
+        snapshot: Result<WifiSnapshot, crate::ports::wifi::WifiError>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Ok(snapshot) = snapshot
+            && self.snapshot != snapshot
+        {
+            self.snapshot = snapshot;
+            cx.notify();
         }
     }
 
@@ -121,8 +105,10 @@ impl WifiSection {
             move |checked: bool, _details: &mut _, _window: &mut Window, cx: &mut gpui::App| {
                 entity
                     .update(cx, |section: &mut Self, cx| {
-                        section.enabled = checked;
-                        cx.notify();
+                        if section.service.set_enabled(checked).is_ok() {
+                            section.snapshot.enabled = checked;
+                            cx.notify();
+                        }
                     })
                     .ok();
             }
@@ -131,7 +117,7 @@ impl WifiSection {
         SwitchRoot::new()
             .id("wifi-switch")
             .aria_label("Wi-Fi")
-            .checked(Some(self.enabled))
+            .checked(Some(self.snapshot.enabled))
             .on_checked_change(on_checked_change)
             .w(px(34.))
             .h(px(19.))
@@ -161,81 +147,105 @@ impl WifiSection {
     }
 
     fn render_networks(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let enabled = self.enabled;
-        let active = self.active;
+        let enabled = self.snapshot.enabled;
+        let connected = self.snapshot.connected_ssid.clone();
         div()
             .flex()
             .flex_col()
             .gap(px(2.))
             .mt(px(8.))
-            .children(NETWORKS.iter().enumerate().map(|(index, network)| {
-                let current = enabled && index == active;
-                div()
-                    .id(("wifi-network", index))
-                    .flex()
-                    .items_center()
-                    .gap(px(8.))
-                    .p(px(8.))
-                    .rounded(px(6.))
-                    .text_size(px(12.))
-                    .text_color(if enabled {
-                        palette::text()
-                    } else {
-                        palette::muted()
-                    })
-                    .bg(if current {
-                        palette::raise()
-                    } else {
-                        palette::transparent()
-                    })
-                    .cursor_pointer()
-                    .hover(|style| style.bg(palette::raise()))
-                    .on_click(cx.listener(move |section, _event, window, cx| {
-                        if !section.enabled || index == section.active {
-                            return;
-                        }
-                        if NETWORKS[index].secure && !section.known[index] {
-                            // Deferred: the dialog's on_open_change updates
-                            // this same section, which would re-enter the
-                            // in-progress entity update.
-                            let handle = section.join_dialog.clone();
-                            window.defer(cx, move |window, cx| {
-                                handle.open_with_payload(index, window, cx);
-                            });
+            .when(self.snapshot.networks.is_empty(), |list| {
+                list.child(
+                    div()
+                        .p(px(8.))
+                        .text_size(px(11.5))
+                        .text_color(palette::muted())
+                        .child(if enabled {
+                            "No networks found"
                         } else {
-                            section.active = index;
-                            cx.notify();
-                        }
-                    }))
-                    .child(div().size(px(6.)).rounded_full().bg(if current {
-                        palette::green()
-                    } else {
-                        palette::muted()
-                    }))
-                    .child(network.name)
-                    .child(
+                            "Wi-Fi is off"
+                        }),
+                )
+            })
+            .children(
+                self.snapshot
+                    .networks
+                    .iter()
+                    .enumerate()
+                    .map(|(index, network)| {
+                        let current = connected.as_deref() == Some(network.ssid.as_str());
+                        let ssid = network.ssid.clone();
+                        let secure = network.secure;
+                        let bars = match network.signal {
+                            -55.. => "▮▮▮",
+                            -70..=-56 => "▮▮▯",
+                            _ => "▮▯▯",
+                        };
                         div()
-                            .ml_auto()
+                            .id(("wifi-network", index))
                             .flex()
                             .items_center()
                             .gap(px(8.))
-                            .when(network.secure, |meta| {
-                                meta.child(
-                                    svg()
-                                        .path(LOCK_ICON)
-                                        .size(px(11.))
-                                        .text_color(palette::muted()),
-                                )
+                            .p(px(8.))
+                            .rounded(px(6.))
+                            .text_size(px(12.))
+                            .text_color(if enabled {
+                                palette::text()
+                            } else {
+                                palette::muted()
                             })
+                            .bg(if current {
+                                palette::raise()
+                            } else {
+                                palette::transparent()
+                            })
+                            .cursor_pointer()
+                            .hover(|style| style.bg(palette::raise()))
+                            .on_click(cx.listener(move |section, _event, window, cx| {
+                                if !section.snapshot.enabled || current {
+                                    return;
+                                }
+                                if section.service.join(&ssid, None).is_ok() {
+                                    section.snapshot.connected_ssid = Some(ssid.clone());
+                                    cx.notify();
+                                } else if secure {
+                                    section.password.lock().expect("password lock").clear();
+                                    let handle = section.join_dialog.clone();
+                                    window.defer(cx, move |window, cx| {
+                                        handle.open_with_payload(index, window, cx);
+                                    });
+                                }
+                            }))
+                            .child(div().size(px(6.)).rounded_full().bg(if current {
+                                palette::green()
+                            } else {
+                                palette::muted()
+                            }))
+                            .child(network.ssid.clone())
                             .child(
                                 div()
-                                    .font_family(typography::mono())
-                                    .text_size(px(10.))
-                                    .text_color(palette::muted())
-                                    .child(network.bars),
-                            ),
-                    )
-            }))
+                                    .ml_auto()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(8.))
+                                    .when(network.secure, |meta| {
+                                        meta.child(
+                                            svg()
+                                                .path(LOCK_ICON)
+                                                .size(px(11.))
+                                                .text_color(palette::muted()),
+                                        )
+                                    })
+                                    .child(
+                                        div()
+                                            .font_family(typography::mono())
+                                            .text_size(px(10.))
+                                            .text_color(palette::muted())
+                                            .child(bars),
+                                    ),
+                            )
+                    }),
+            )
     }
 
     fn render_join_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -305,7 +315,17 @@ fn join_dialog_content(
     cx: &mut gpui::App,
 ) -> gpui::AnyElement {
     let index = network.unwrap_or(0);
-    let name = NETWORKS[index % NETWORKS.len()].name;
+    let name = entity
+        .upgrade()
+        .and_then(|section| {
+            section
+                .read(cx)
+                .snapshot
+                .networks
+                .get(index)
+                .map(|network| network.ssid.clone())
+        })
+        .unwrap_or_else(|| "Wi-Fi network".to_owned());
     let remember = entity
         .upgrade()
         .map(|section| section.read(cx).remember)
@@ -337,11 +357,15 @@ fn join_dialog_content(
         move |_: &_, window: &mut Window, cx: &mut gpui::App| {
             entity
                 .update(cx, |section: &mut WifiSection, cx| {
-                    section.active = index;
-                    if section.remember {
-                        section.known[index] = true;
+                    let Some(network) = section.snapshot.networks.get(index) else {
+                        return;
+                    };
+                    let ssid = network.ssid.clone();
+                    let password = section.password.lock().expect("password lock").clone();
+                    if section.service.join(&ssid, Some(&password)).is_ok() {
+                        section.snapshot.connected_ssid = Some(ssid);
+                        cx.notify();
                     }
-                    cx.notify();
                 })
                 .ok();
             if let Some(section) = entity.upgrade() {
@@ -379,6 +403,13 @@ fn join_dialog_content(
         .child(
             Input::new()
                 .id("wifi-join-password")
+                .on_value_change({
+                    let password = entity
+                        .upgrade()
+                        .map(|section| section.read(cx).password.clone())
+                        .unwrap_or_default();
+                    move |value| *password.lock().expect("password lock") = value.to_string()
+                })
                 .name("password")
                 .aria_label("Password")
                 .placeholder("Password")
@@ -521,16 +552,13 @@ impl Render for WifiSection {
                                 .hover(|style| style.bg(palette::raise()))
                         }
                     })
-                    .child(
-                        svg()
-                            .path(WIFI_ICON)
-                            .size(px(16.))
-                            .text_color(if self.enabled {
-                                palette::text()
-                            } else {
-                                palette::muted()
-                            }),
-                    ),
+                    .child(svg().path(WIFI_ICON).size(px(16.)).text_color(
+                        if self.snapshot.enabled {
+                            palette::text()
+                        } else {
+                            palette::muted()
+                        },
+                    )),
             )
             .child(
                 PopoverPortal::new().child(

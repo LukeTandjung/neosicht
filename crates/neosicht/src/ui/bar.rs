@@ -16,7 +16,7 @@ use crate::ui::island::IslandSection;
 // use notifications::ui::section::NotificationsSection;
 // use volume::ui::section::VolumeSection;
 // use wallpaper::ui::section::WallpaperSection;
-// use wifi::ui::section::WifiSection;
+use wifi::ui::section::WifiSection;
 
 pub const BAR_HEIGHT: f32 = 32.0;
 const CORNER_RADIUS: f32 = 12.0;
@@ -38,7 +38,7 @@ pub struct BarSections {
     // pub notifications: Entity<NotificationsSection>,
     // pub volume: Entity<VolumeSection>,
     // pub bluetooth: Entity<BluetoothSection>,
-    // pub wifi: Entity<WifiSection>,
+    pub wifi: Entity<WifiSection>,
     // pub wallpaper: Entity<WallpaperSection>,
     pub theme: Entity<ThemeSection>,
 }
@@ -68,7 +68,7 @@ impl Render for Bar {
                 // .child(self.sections.notifications.clone())
                 // .child(self.sections.volume.clone())
                 // .child(self.sections.bluetooth.clone())
-                // .child(self.sections.wifi.clone())
+                .child(self.sections.wifi.clone())
                 .child(self.sections.battery.clone())
                 // .child(self.sections.wallpaper.clone())
                 .child(self.sections.island.clone())

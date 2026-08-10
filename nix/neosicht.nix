@@ -11,7 +11,7 @@ rustPlatform.buildRustPackage {
   version = "0.1.0";
 
   src = lib.cleanSource ../.;
-  cargoHash = "sha256-OBPMlQzCONrEVg0d5pODR3WAqReIdH+S9xSfT4G9JKI=";
+  cargoHash = "sha256-Q2IDe8WClQl/gMie+8Z6Kk0CG5NmTizG33WjGfBW2YU=";
 
   nativeBuildInputs = [swift jq];
 
