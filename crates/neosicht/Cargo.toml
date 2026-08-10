@@ -11,12 +11,19 @@ env_logger = "0.11.11"
 gpui = { workspace = true }
 gpui_platform = { workspace = true }
 workspaces = { path = "../workspaces" }
+theme = { workspace = true }
+weather = { workspace = true }
+music = { workspace = true }
+datetime = { workspace = true }
+notifications = { workspace = true }
+volume = { workspace = true }
+bluetooth = { workspace = true }
+wifi = { workspace = true }
+battery = { workspace = true }
+wallpaper = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # runtime_shaders: the Nix apple-sdk xcrun cannot drive Xcode's downloadable
 # Metal toolchain. font-kit: text rendering is feature-gated in the crate
 # split; without it gpui lays text out but draws no glyphs.
 gpui_macos = { workspace = true, features = ["runtime_shaders", "font-kit"] }
-
-[build-dependencies]
-cc = "1"
