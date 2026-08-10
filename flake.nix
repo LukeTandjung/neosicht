@@ -9,8 +9,13 @@
       );
   in {
     formatter = forAllSystems (pkgs: pkgs.alejandra);
-    packages = forAllSystems (pkgs: {
-      devenv = pkgs.devenv;
-    });
+    packages = forAllSystems (pkgs:
+      {devenv = pkgs.devenv;}
+      // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin (let
+        neosicht = pkgs.callPackage ./nix/neosicht.nix {};
+      in {
+        inherit neosicht;
+        default = neosicht;
+      }));
   };
 }
